@@ -33,7 +33,7 @@
   .prose p { margin: 0; text-wrap: pretty; font-size: clamp(19px, 3.6vw, 23px); line-height: 1.55; }
   h1 {
     font: 400 clamp(40px, 9vw, 64px)/0.95 var(--display);
-    margin: 0 0 20px; letter-spacing: -0.01em; text-wrap: balance; text-align: center;
+    margin: 0 0 6px; letter-spacing: -0.01em; text-wrap: balance; text-align: center;
   }
   h1 .o { color: var(--pink); }
 
@@ -65,7 +65,7 @@
     box-shadow: 4px 4px 0 var(--teal); cursor: pointer; user-select: none; touch-action: manipulation;
     transition: transform .1s, box-shadow .1s;
   }
-  .feed { display: inline-flex; align-items: center; gap: 10px; }
+  .feed { text-transform: uppercase; letter-spacing: .03em; display: inline-flex; align-items: center; gap: 10px; }
   .feed .spoon { flex: none; }
   .feed:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--teal); }
   .feed:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--teal); }
@@ -95,8 +95,8 @@
 <body>
 
 <main>
+  <h1>Meet Juniper<span class="o">.</span></h1>
   <header class="prose">
-    <h1>Meet Juniper<span class="o">.</span></h1>
     <p>She's a ruby-throated hummingbird, currently <span class="chip" id="chipW">3.0 g</span> and beating her wings <span class="chip" id="chipHz">53</span> times a second.</p>
     <p>Mix one part sugar to four parts water, then <button class="chip" id="chipFeed" type="button">stir in a spoonful</button> and see how she handles it.</p>
   </header>
@@ -129,7 +129,7 @@
 
 <script>
 (() => {
-  const W = 800, H = 560, GROUND = 494, SHIFT_X = -150;
+  const W = 800, H = 560, GROUND = 494, SHIFT_X = -165, SHIFT_Y = -32;
   const MINW = 3, MAXW = 14;
   const INK = { pink: '#ff48b0', teal: '#0a8f94', yel: '#ffe61f', paper: '#f1f0ea' };
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -240,6 +240,7 @@
   /* ---------- the feeder ---------- */
   const BX = 668, BY = 96, BW = 72, BH = 190;
   const PORT = { x: 651, y: 291 };
+  const liqY = () => BY + BH - 12 - (BH - 24) * lvl;
 
   function drawFeeder(now, drinking) {
     const liqTop = BY + BH - 10 - (BH - 24) * lvl;
@@ -388,8 +389,8 @@
     drawFlower(now, 70, 1, 400, 0);
     drawFlower(now, 730, -1, 420, 2);
     // shift bird + feeder left so the pair sits in the middle of the frame
-    [Y, P, T].forEach(g => { g.save(); g.translate(SHIFT_X, 0); });
-    T.save(); T.fillStyle = tl.mid; ell(T, b.px - 20, GROUND + 22, 60 + f * 70, 9 + f * 4); T.fill(); T.restore();
+    [Y, P, T].forEach(g => { g.save(); g.translate(SHIFT_X, SHIFT_Y); });
+    T.save(); T.fillStyle = tl.mid; ell(T, b.px - 20, GROUND + 22 - SHIFT_Y, 60 + f * 70, 9 + f * 4); T.fill(); T.restore();
     drawFeeder(now, drinking);
     drawBird(b, wingAng, amp, !grounded, drinking, now);
 
@@ -397,7 +398,7 @@
     for (let i = crystals.length - 1; i >= 0; i--) {
       const c = crystals[i]; c.vy += 500 * dt; c.y += c.vy * dt;
       T.save(); T.translate(c.x, c.y); T.rotate(c.r + c.y / 30); T.fillStyle = INK.teal; T.fillRect(-2.5, -2.5, 5, 5); T.restore();
-      if (c.y > BY + BH - 14 - (BH - 24) * lvl) crystals.splice(i, 1);
+      if (c.y > liqY()) crystals.splice(i, 1);
     }
     if (spoonT > 0) {
       const k = 1 - spoonT, s = Math.sin(Math.PI * k), tip = Math.min(1, s * 1.6);
