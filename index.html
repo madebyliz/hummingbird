@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Juniper's Feeder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper: #f1f0ea;
+    --ink: #08252a;
+    --pink: #ff48b0;
+    --teal: #0a8f94;
+    --yellow: #ffe61f;
+    --mute: #4d6a6d;
+    --rule: #c9d3cf;
+    --display: "Bagel Fat One", "Arial Rounded MT Bold", system-ui, sans-serif;
+    --body: "Instrument Sans", system-ui, -apple-system, sans-serif;
+    --mono: "DM Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--paper); color: var(--ink); }
+  body {
+    font: 400 17px/1.6 var(--body);
+    padding-inline: 20px;
+    padding-block: 56px 72px;
+  }
+  main { max-width: 720px; margin-inline: auto; display: flex; flex-direction: column; gap: 28px; }
+
+  .prose { display: flex; flex-direction: column; gap: 14px; max-width: 60ch; }
+  .prose p { margin: 0; text-wrap: pretty; }
+  h1 {
+    font: 400 clamp(40px, 9vw, 64px)/0.95 var(--display);
+    margin: 0 0 6px; letter-spacing: -0.01em; text-wrap: balance;
+  }
+  h1 .o { color: var(--pink); }
+
+  /* inline interactive bits, dropped into the sentences */
+  .chip {
+    display: inline-block; font: 500 0.82em/1.35 var(--mono);
+    padding: 0 7px; border-radius: 6px; border: 1.5px solid var(--ink);
+    background: var(--yellow); font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  button.chip { cursor: pointer; color: var(--ink); background: var(--pink); transition: transform .12s; }
+  button.chip:hover { transform: translateY(-1px) rotate(-1.5deg); }
+  button.chip:active { transform: translateY(1px); }
+
+  .plate {
+    position: relative; border: 2px solid var(--ink); border-radius: 4px;
+    box-shadow: 6px 6px 0 var(--teal); background: var(--paper);
+  }
+  canvas#stage { display: block; width: 100%; aspect-ratio: 800 / 560; cursor: pointer; touch-action: manipulation; }
+  .say {
+    position: absolute; left: 14px; bottom: 12px; right: 14px; margin: 0;
+    font: 500 13px/1.35 var(--mono); pointer-events: none;
+  }
+  .say span { background: var(--paper); padding: 2px 6px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+
+  .panel { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 28px; }
+  .feed {
+    font: 400 22px/1 var(--display); color: var(--ink); background: var(--pink);
+    border: 2px solid var(--ink); border-radius: 999px; padding: 14px 26px;
+    box-shadow: 4px 4px 0 var(--teal); cursor: pointer; user-select: none; touch-action: manipulation;
+    transition: transform .1s, box-shadow .1s;
+  }
+  .feed:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--teal); }
+  .feed:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--teal); }
+  :focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+
+  dl.stats { display: flex; gap: 26px; margin: 0; flex-wrap: wrap; }
+  dl.stats div { display: flex; flex-direction: column; gap: 2px; }
+  dt { font: 500 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--mute); }
+  dd { margin: 0; font: 500 26px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+  dd small { font-size: 13px; color: var(--mute); margin-left: 2px; }
+
+  .stage { display: flex; flex-direction: column; gap: 8px; }
+  .stage-name { font: 400 30px/1 var(--display); margin: 0; }
+  .steps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+  .steps i { height: 10px; border: 1.5px solid var(--ink); border-radius: 2px; background: transparent; transition: background .3s; }
+  .steps i.on { background: var(--pink); }
+  .steps i.now { background: var(--yellow); box-shadow: inset 0 0 0 2px var(--pink); }
+  .steps-labels { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; font: 400 10px/1.2 var(--mono); color: var(--mute); text-transform: uppercase; letter-spacing: .04em; }
+  .steps-labels span { overflow: hidden; text-overflow: clip; white-space: nowrap; }
+  @media (max-width: 520px) { .steps-labels { display: none; } }
+
+  .foot { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font: 400 12px/1.5 var(--mono); color: var(--mute); border-top: 1px solid var(--rule); padding-top: 16px; }
+  button.link { font: inherit; color: var(--ink); background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+</style>
+</head>
+<body>
+
+<main>
+  <header class="prose">
+    <h1>Meet Juniper<span class="o">.</span></h1>
+    <p>She's a ruby-throated hummingbird, currently <span class="chip" id="chipW">3.0 g</span> and beating her wings <span class="chip" id="chipHz">53</span> times a second.</p>
+    <p>Mix one part sugar to four parts water, then <button class="chip" id="chipFeed" type="button">stir in a spoonful</button> and see how she handles it.</p>
+  </header>
+
+  <figure class="plate" style="margin:0">
+    <canvas id="stage" width="800" height="560" role="img" aria-label="A risograph-printed hummingbird sipping from a feeder"></canvas>
+    <p class="say" id="say" aria-live="polite"><span>Just a sip. Barely registers on the scale.</span></p>
+  </figure>
+
+  <section class="panel" aria-label="Feeding controls">
+    <button class="feed" id="feed" type="button">+ One spoonful</button>
+    <dl class="stats">
+      <div><dt>Weight</dt><dd><span id="sW">3.0</span><small>g</small></dd></div>
+      <div><dt>Wingbeats</dt><dd><span id="sHz">53</span><small>/s</small></dd></div>
+      <div><dt>Spoonfuls</dt><dd id="sN">0</dd></div>
+    </dl>
+  </section>
+
+  <section class="stage" aria-label="Progress">
+    <p class="stage-name" id="stageName">Sleek</p>
+    <div class="steps" id="steps"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="steps-labels"><span>Sleek</span><span>Peckish</span><span>Plump</span><span>Round</span><span>Orb</span><span>Grounded</span></div>
+  </section>
+
+  <footer class="foot">
+    <span>Three inks, one press: fluorescent pink, teal, sunshine yellow. Hold the button to keep pouring.</span>
+    <button class="link" id="reset" type="button">Start over</button>
+  </footer>
+</main>
+
+<script>
+(() => {
+  const W = 800, H = 560, GROUND = 494;
+  const MINW = 3, MAXW = 14;
+  const INK = { pink: '#ff48b0', teal: '#0a8f94', yel: '#ffe61f', paper: '#f1f0ea' };
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const cv = document.getElementById('stage');
+  const ctx = cv.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = W * dpr; cv.height = H * dpr;
+
+  const layer = () => {
+    const c = document.createElement('canvas');
+    c.width = W * dpr; c.height = H * dpr;
+    const g = c.getContext('2d'); g.scale(dpr, dpr);
+    return [c, g];
+  };
+  const [yC, Y] = layer(), [pC, P] = layer(), [tC, T] = layer();
+
+  /* ---------- print textures ---------- */
+  const rng = seed => () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+  function grainMask(seed, n) {
+    const r = rng(seed), c = document.createElement('canvas');
+    c.width = W * dpr; c.height = H * dpr;
+    const g = c.getContext('2d');
+    for (let i = 0; i < 70; i++) {            // uneven ink coverage
+      g.globalAlpha = 0.05 + r() * 0.07;
+      g.beginPath(); g.arc(r() * c.width, r() * c.height, (18 + r() * 50) * dpr, 0, 7); g.fill();
+    }
+    for (let i = 0; i < n; i++) {             // pinholes
+      g.globalAlpha = 0.4 + r() * 0.6;
+      const s = (0.6 + r() * 1.5) * dpr;
+      g.fillRect(r() * c.width, r() * c.height, s, s);
+    }
+    return c;
+  }
+  const masks = { y: grainMask(11, 9000), p: grainMask(23, 9000), t: grainMask(37, 9000) };
+
+  const paperFiber = (() => {
+    const r = rng(5), c = document.createElement('canvas');
+    c.width = W * dpr; c.height = H * dpr;
+    const g = c.getContext('2d'); g.fillStyle = '#9a9684';
+    for (let i = 0; i < 5000; i++) {
+      g.globalAlpha = 0.08 + r() * 0.22;
+      g.fillRect(r() * c.width, r() * c.height, (0.6 + r() * 1.2) * dpr, (0.6 + r() * 1.2) * dpr);
+    }
+    return c;
+  })();
+
+  function halftone(color, size, rad, angle = 28) {
+    const c = document.createElement('canvas');
+    c.width = c.height = Math.round(size * dpr);
+    const g = c.getContext('2d'); g.fillStyle = color;
+    const s = size * dpr, r = rad * dpr;
+    [[.5, .5], [0, 0], [1, 0], [0, 1], [1, 1]].forEach(([a, b]) => { g.beginPath(); g.arc(a * s, b * s, r, 0, 7); g.fill(); });
+    const pat = ctx.createPattern(c, 'repeat');
+    pat.setTransform(new DOMMatrix().rotate(angle).scale(1 / dpr));
+    return pat;
+  }
+  const pk = { mid: halftone(INK.pink, 7, 2.5), lite: halftone(INK.pink, 7, 1.5) };
+  const tl = { mid: halftone(INK.teal, 7, 2.5, 60), lite: halftone(INK.teal, 6, 1.4, 60), ghost: halftone(INK.teal, 5, 1.1, 10) };
+  const yl = { mid: halftone(INK.yel, 7, 2.6, 15) };
+
+  // the sun: a halftone disc whose dots swell toward the middle
+  const sunC = (() => {
+    const [c, g] = layer(); g.fillStyle = INK.yel;
+    const cx = 330, cy = 250, R = 260, sp = 10, a = 0.35, ca = Math.cos(a), sa = Math.sin(a);
+    for (let i = -40; i < 40; i++) for (let j = -40; j < 40; j++) {
+      const x = cx + (i * ca - j * sa) * sp, y = cy + (i * sa + j * ca) * sp;
+      const d = Math.hypot(x - cx, y - cy); if (d > R) continue;
+      const rad = 6.4 * Math.pow(1 - d / R, 0.85);
+      if (rad < 0.5) continue;
+      g.beginPath(); g.arc(x, y, rad, 0, 7); g.fill();
+    }
+    return c;
+  })();
+
+  /* ---------- state ---------- */
+  const STAGES = [
+    { to: 4.2, name: 'Sleek', say: 'Just a sip. Barely registers on the scale.' },
+    { to: 5.6, name: 'Peckish', say: 'Oh, that is good. Another?' },
+    { to: 7.4, name: 'Plump', say: 'Her wings are working a little harder now.' },
+    { to: 9.6, name: 'Round', say: 'Hovering has become more of a negotiation.' },
+    { to: 13.9, name: 'Orb', say: 'Wingbeats slowing. She is fine. She is thrilled.' },
+    { to: 99, name: 'Grounded', say: 'Grounded, glowing, and refusing to discuss it.' },
+  ];
+  let w = MINW, supply = 0, spoons = 0, phase = 0, sipT = 0, spoonT = 0, lvl = 0.15;
+  let ampScale = 1, groundT = 0, stageIdx = -1, last = performance.now();
+  const crystals = [];
+
+  const $ = id => document.getElementById(id);
+  const el = { chipW: $('chipW'), chipHz: $('chipHz'), sW: $('sW'), sHz: $('sHz'), sN: $('sN'), name: $('stageName'), say: $('say'), steps: [...$('steps').children] };
+  const setText = (n, v) => { if (n.textContent !== v) n.textContent = v; };
+
+  function feed() {
+    supply = Math.min(supply + 1, 2.5);
+    spoons++; spoonT = 1;
+    for (let i = 0; i < 9; i++) crystals.push({ x: 692 + Math.random() * 26, y: 66, vy: 20 + Math.random() * 40, r: Math.random() * 3 });
+  }
+
+  /* ---------- drawing helpers ---------- */
+  const leaf = (g, len, wd) => {
+    g.beginPath(); g.moveTo(0, 0);
+    g.quadraticCurveTo(len * .45, -wd, len, 0);
+    g.quadraticCurveTo(len * .4, wd * .55, 0, 0); g.closePath();
+  };
+  const ell = (g, x, y, rx, ry) => { g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 7); };
+
+  /* ---------- the feeder ---------- */
+  const BX = 668, BY = 96, BW = 72, BH = 190;
+  const PORT = { x: 651, y: 291 };
+
+  function drawFeeder(now, drinking) {
+    const liqTop = BY + BH - 10 - (BH - 24) * lvl;
+    // liquid (yellow)
+    Y.save(); Y.beginPath(); Y.roundRect(BX + 4, BY + 4, BW - 8, BH - 8, 12); Y.clip();
+    Y.fillStyle = INK.yel; Y.fillRect(BX, liqTop, BW, BH);
+    Y.restore();
+    // bubbles + tick marks (teal)
+    T.save(); T.beginPath(); T.roundRect(BX + 4, BY + 4, BW - 8, BH - 8, 12); T.clip();
+    T.strokeStyle = INK.teal; T.lineWidth = 1.6;
+    const span = BH - 24;
+    for (let i = 0; i < 3; i++) {
+      const bx = BX + 18 + i * 17 + Math.sin(now / 500 + i * 2) * 3;
+      const rise = ((now / (drinking ? 14 : 40)) + i * 55) % Math.max(20, BH - 14 - (liqTop - BY));
+      const by = BY + BH - 14 - rise;
+      if (by > liqTop + 6) { T.beginPath(); T.arc(bx, by, 3 + i, 0, 7); T.stroke(); }
+    }
+    T.restore();
+    T.strokeStyle = INK.teal; T.lineWidth = 5; T.lineJoin = 'round';
+    T.beginPath(); T.roundRect(BX, BY, BW, BH, 14); T.stroke();
+    T.lineWidth = 2;
+    for (let i = 1; i < 5; i++) {              // measuring ticks
+      const ty = BY + BH - 12 - (span * i) / 5;
+      T.beginPath(); T.moveTo(BX + BW - 22, ty); T.lineTo(BX + BW - 6, ty); T.stroke();
+    }
+    T.fillStyle = tl.lite; T.fillRect(BX + 9, BY + 14, 12, BH - 30);    // shine
+    T.fillStyle = INK.teal; T.beginPath(); T.roundRect(BX + 16, BY - 16, BW - 32, 20, 5); T.fill();
+    T.lineWidth = 3; T.beginPath(); T.moveTo(BX + BW / 2, BY - 16); T.lineTo(BX + BW / 2, -4); T.stroke();
+    // base + port flower (pink)
+    P.fillStyle = INK.pink; P.beginPath(); P.roundRect(BX - 8, BY + BH, BW + 16, 16, 6); P.fill();
+    P.save(); P.translate(PORT.x, PORT.y);
+    for (let i = 0; i < 6; i++) { P.rotate(Math.PI / 3); ell(P, 10, 0, 9, 5); P.fill(); }
+    P.restore();
+    Y.fillStyle = INK.yel; Y.beginPath(); Y.arc(PORT.x, PORT.y, 5, 0, 7); Y.fill();
+    if (drinking) {                             // drip
+      const dy = (now / 6) % 24;
+      Y.beginPath(); Y.arc(PORT.x + 2, PORT.y + 8 + dy, 3, 0, 7); Y.fill();
+    }
+  }
+
+  /* ---------- the bird ---------- */
+  function birdGeom(f, tilt, bob, sn) {
+    const rx = 64 + f * 44, ry = 24 + f * 54, cy = f * 30;
+    const hr = 19 + f * 3, hx = rx * .78 + 6, hy = cy - ry * .22 - 4;
+    const tip = { x: hx + hr * .8 + 84, y: hy + 6 };
+    const c = Math.cos(tilt), s = Math.sin(tilt);
+    const tx = PORT.x - 4 + sn, ty = PORT.y - 6;
+    return { rx, ry, cy, hr, hx, hy, tip, tilt, f,
+      px: tx - (tip.x * c - tip.y * s), py: ty - (tip.x * s + tip.y * c) + bob };
+  }
+
+  function drawBird(b, wingAng, amp, ghost, drinking, now) {
+    const { rx, ry, cy, hr, hx, hy, tip, f } = b;
+    const sx = -rx * .05, sy = cy - ry * .62, wl = 150 * (1 - f * .12), ww = 34;
+    const wing = (g, a, fill) => { g.save(); g.translate(sx, sy); g.rotate(a); leaf(g, wl, ww); g.fillStyle = fill; g.fill(); g.restore(); };
+    const bodyPath = g => ell(g, 0, cy, rx, ry);
+
+    // ---- teal plate
+    T.save(); T.translate(b.px, b.py); T.rotate(b.tilt);
+    wing(T, wingAng + .28 - (1 - groundT) * .05, tl.mid);                         // far wing
+    for (let k = 3; k >= 1; k--) if (ghost) wing(T, wingAng - Math.sin(phase) * amp + Math.sin(phase - k * .4) * amp, tl.ghost);
+    T.fillStyle = INK.teal;
+    for (let k = -1; k <= 1; k++) {                                              // tail
+      T.save(); T.translate(-rx * .85, cy + ry * .25); T.rotate(Math.PI - .02 + k * .3);
+      leaf(T, 74 - Math.abs(k) * 12, 15); T.fillStyle = k ? tl.mid : INK.teal; T.fill(); T.restore();
+    }
+    T.save(); bodyPath(T); T.clip();                                             // back
+    ell(T, rx * .05, cy - ry * .6, rx * 1.05, ry * .72); T.fillStyle = INK.teal; T.fill();
+    T.restore();
+    ell(T, hx, hy, hr, hr); T.save(); T.clip();                                  // head cap
+    T.fillStyle = INK.teal; T.fillRect(hx - hr, hy - hr, hr * 2, hr * 1.15); T.restore();
+    T.fillStyle = INK.teal;                                                       // beak
+    T.beginPath(); T.moveTo(hx + hr * .6, hy - 3); T.lineTo(tip.x, tip.y - .6); T.lineTo(tip.x, tip.y + .6); T.lineTo(hx + hr * .6, hy + 4.5); T.fill();
+    ell(T, hx + hr * .38, hy - hr * .18, 3.8, 3.8); T.fill();                     // eye
+    wing(T, wingAng, INK.teal);                                                   // near wing
+    T.restore();
+
+    // ---- pink plate
+    P.save(); P.translate(b.px, b.py); P.rotate(b.tilt);
+    P.save(); bodyPath(P); P.clip();
+    P.fillStyle = pk.mid; P.fillRect(-rx, cy - ry, rx * 2, ry * 2);
+    ell(P, rx * .1, cy + ry * .55, rx * .92, ry * .68); P.fillStyle = INK.pink; P.fill();  // belly
+    P.restore();
+    ell(P, hx, hy, hr, hr); P.save(); P.clip();
+    P.fillStyle = INK.pink; P.fillRect(hx - hr, hy + hr * .08, hr * 2, hr * 2);            // ruby throat
+    P.restore();
+    ell(P, hx + hr * .38, hy - hr * .18, 3.8, 3.8); P.fill();
+    P.fillStyle = pk.lite;                                                                  // tail tips
+    P.save(); P.translate(-rx * .85, cy + ry * .25); P.rotate(Math.PI); leaf(P, 60, 12); P.fill(); P.restore();
+    if (drinking && Math.sin(now / 90) > 0.2) {                                             // tongue flick
+      P.strokeStyle = INK.pink; P.lineWidth = 1.8; P.beginPath(); P.moveTo(tip.x, tip.y); P.lineTo(tip.x + 9, tip.y + 3); P.stroke();
+    }
+    P.restore();
+
+    // ---- yellow plate: belly glow
+    Y.save(); Y.translate(b.px, b.py); Y.rotate(b.tilt);
+    bodyPath(Y); Y.clip();
+    ell(Y, rx * .25, cy + ry * .35, rx * .55, ry * .5); Y.fillStyle = yl.mid; Y.fill();
+    Y.restore();
+  }
+
+  /* ---------- flower she's ignoring ---------- */
+  function drawFlower(now) {
+    const fx = 96, fy = 400, sway = Math.sin(now / 1400) * 2;
+    T.strokeStyle = INK.teal; T.lineWidth = 5; T.lineCap = 'round';
+    T.beginPath(); T.moveTo(fx - 6, GROUND); T.quadraticCurveTo(fx + 30, 460, fx + sway, fy + 10); T.stroke();
+    T.fillStyle = INK.teal; T.save(); T.translate(fx + 18, 452); T.rotate(-.9); leaf(T, 46, 14); T.fill(); T.restore();
+    P.save(); P.translate(fx + sway, fy);
+    for (let i = 0; i < 5; i++) { P.rotate(Math.PI * 2 / 5); ell(P, 26, 0, 24, 15); P.fillStyle = i % 2 ? INK.pink : pk.mid; P.fill(); }
+    P.restore();
+    Y.fillStyle = INK.yel; Y.beginPath(); Y.arc(fx + sway, fy, 11, 0, 7); Y.fill();
+  }
+
+  /* ---------- frame ---------- */
+  function frame(now) {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    const drinking = supply > .001 && w < MAXW - .02;
+    if (drinking) { const d = Math.min(supply, 1.2 * dt); supply -= d; w = Math.min(MAXW, w + d * .4); sipT += dt * 9; }
+    else if (supply <= .001) w = Math.max(MINW, w - .006 * dt);
+    if (w >= MAXW - .02) supply = Math.min(supply, 1);
+
+    const f = (w - MINW) / (MAXW - MINW);
+    const grounded = w >= MAXW - .05;
+    const hz = grounded ? 0 : 53 * (1 - .8 * f);
+    phase += Math.PI * 2 * (reduce ? 3 : 11 * (1 - .78 * f)) * dt;
+    ampScale += ((grounded ? 0 : 1 - .25 * f) - ampScale) * Math.min(1, dt * 3);
+    groundT += ((grounded ? 1 : 0) - groundT) * Math.min(1, dt * 2.5);
+    lvl += ((.15 + Math.min(supply, 2.5) / 2.5 * .75) - lvl) * Math.min(1, dt * 4);
+    spoonT = Math.max(0, spoonT - dt / .9);
+
+    const amp = .85 * ampScale, up = -Math.PI / 2 - .55, folded = Math.PI - .55;
+    const base = up + (folded - up) * groundT;
+    const wingAng = base + Math.sin(phase) * amp;
+    const tilt = -.62 + .47 * f;
+    const bob = reduce ? 0 : Math.sin(now / 380) * 3 * (1 - f);
+    const sn = drinking ? Math.sin(sipT) * 2.5 : 0;
+    const b = birdGeom(f, tilt, bob, sn);
+
+    [Y, P, T].forEach(g => g.clearRect(0, 0, W, H));
+
+    Y.drawImage(sunC, 0, 0, W, H);
+    T.fillStyle = tl.lite; T.fillRect(0, GROUND, W, H - GROUND);
+    T.fillStyle = INK.teal; T.fillRect(0, GROUND - 2, W, 4);
+    T.save(); T.fillStyle = tl.mid; ell(T, b.px - 20, GROUND + 22, 60 + f * 70, 9 + f * 4); T.fill(); T.restore();
+    drawFlower(now);
+    drawFeeder(now, drinking);
+    drawBird(b, wingAng, amp, !grounded, drinking, now);
+
+    // falling sugar + spoon
+    for (let i = crystals.length - 1; i >= 0; i--) {
+      const c = crystals[i]; c.vy += 500 * dt; c.y += c.vy * dt;
+      T.save(); T.translate(c.x, c.y); T.rotate(c.r + c.y / 30); T.fillStyle = INK.teal; T.fillRect(-2.5, -2.5, 5, 5); T.restore();
+      if (c.y > BY + BH - 14 - (BH - 24) * lvl) crystals.splice(i, 1);
+    }
+    if (spoonT > 0) {
+      const k = 1 - spoonT, s = Math.sin(Math.PI * k), tip = Math.min(1, s * 1.6);
+      T.save(); T.translate(704 + (1 - Math.sqrt(s)) * 110, 64 - (1 - s) * 30);
+      T.rotate(-.25 - tip * .8);
+      T.fillStyle = INK.teal; ell(T, 0, 0, 17, 10); T.fill();
+      T.fillRect(12, -2.5, 96, 5);
+      T.restore();
+    }
+
+    // grain knock-out, then press the three inks with a hair of misregistration
+    [[Y, masks.y, 0, 0], [P, masks.p, 37, 21], [T, masks.t, -23, 44]].forEach(([g, m, ox, oy]) => {
+      g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'destination-out';
+      g.drawImage(m, ox, oy); g.drawImage(m, ox - W * dpr, oy); g.restore();
+    });
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = INK.paper; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(yC, 0, 0);
+    ctx.drawImage(pC, -1.8 * dpr, 1.2 * dpr);
+    ctx.drawImage(tC, 1.5 * dpr, -1.1 * dpr);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(paperFiber, 0, 0);
+
+    // readouts
+    const idx = STAGES.findIndex(s => w < s.to);
+    setText(el.chipW, w.toFixed(1) + ' g'); setText(el.sW, w.toFixed(1));
+    setText(el.chipHz, String(Math.round(hz))); setText(el.sHz, String(Math.round(hz)));
+    setText(el.sN, String(spoons));
+    if (idx !== stageIdx) {
+      stageIdx = idx;
+      setText(el.name, STAGES[idx].name);
+      el.say.firstElementChild.textContent = STAGES[idx].say;
+      el.steps.forEach((s, i) => { s.className = i < idx ? 'on' : i === idx ? 'now' : ''; });
+      cv.setAttribute('aria-label', 'A risograph hummingbird, ' + STAGES[idx].name.toLowerCase() + ', sipping from a feeder');
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- input ---------- */
+  let holdT = 0, holdI = 0;
+  const stop = () => { clearTimeout(holdT); clearInterval(holdI); };
+  const press = e => { feed(); holdT = setTimeout(() => { holdI = setInterval(feed, 170); }, 420); };
+  [$('feed'), $('chipFeed'), cv].forEach(n => {
+    n.addEventListener('pointerdown', press);
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => n.addEventListener(ev, stop));
+    n.addEventListener('click', e => { if (e.detail === 0) feed(); });
+  });
+  $('reset').addEventListener('click', () => { w = MINW; supply = 0; spoons = 0; crystals.length = 0; });
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
