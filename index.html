@@ -30,10 +30,10 @@
   main { max-width: 720px; margin-inline: auto; display: flex; flex-direction: column; gap: 28px; }
 
   .prose { display: flex; flex-direction: column; gap: 14px; max-width: 60ch; }
-  .prose p { margin: 0; text-wrap: pretty; }
+  .prose p { margin: 0; text-wrap: pretty; font-size: clamp(19px, 3.6vw, 23px); line-height: 1.55; }
   h1 {
     font: 400 clamp(40px, 9vw, 64px)/0.95 var(--display);
-    margin: 0 0 6px; letter-spacing: -0.01em; text-wrap: balance;
+    margin: 0 0 20px; letter-spacing: -0.01em; text-wrap: balance; text-align: center;
   }
   h1 .o { color: var(--pink); }
 
@@ -43,7 +43,7 @@
     padding: 0 7px; border-radius: 6px; border: 1.5px solid var(--ink);
     background: var(--yellow); font-variant-numeric: tabular-nums; white-space: nowrap;
   }
-  button.chip { cursor: pointer; color: var(--ink); background: var(--pink); transition: transform .12s; }
+  button.chip { cursor: pointer; color: var(--paper); background: var(--pink); transition: transform .12s; }
   button.chip:hover { transform: translateY(-1px) rotate(-1.5deg); }
   button.chip:active { transform: translateY(1px); }
 
@@ -58,13 +58,15 @@
   }
   .say span { background: var(--paper); padding: 2px 6px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 
-  .panel { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 28px; }
+  .panel { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 48px; }
   .feed {
-    font: 400 22px/1 var(--display); color: var(--ink); background: var(--pink);
+    font: 400 22px/1 var(--display); color: var(--paper); background: var(--pink);
     border: 2px solid var(--ink); border-radius: 999px; padding: 14px 26px;
     box-shadow: 4px 4px 0 var(--teal); cursor: pointer; user-select: none; touch-action: manipulation;
     transition: transform .1s, box-shadow .1s;
   }
+  .feed { display: inline-flex; align-items: center; gap: 10px; }
+  .feed .spoon { flex: none; }
   .feed:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--teal); }
   .feed:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--teal); }
   :focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
@@ -105,7 +107,7 @@
   </figure>
 
   <section class="panel" aria-label="Feeding controls">
-    <button class="feed" id="feed" type="button">+ One spoonful</button>
+    <button class="feed" id="feed" type="button">+ One spoonful <svg class="spoon" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><g transform="rotate(40 16 16)" fill="currentColor"><ellipse cx="16" cy="8.5" rx="6.5" ry="8"/><path d="M14.4 15 H17.6 L17.2 30 Q16 31.5 14.8 30 Z"/></g></svg></button>
     <dl class="stats">
       <div><dt>Weight</dt><dd><span id="sW">3.0</span><small>g</small></dd></div>
       <div><dt>Wingbeats</dt><dd><span id="sHz">53</span><small>/s</small></dd></div>
@@ -127,7 +129,7 @@
 
 <script>
 (() => {
-  const W = 800, H = 560, GROUND = 494;
+  const W = 800, H = 560, GROUND = 494, SHIFT_X = -150;
   const MINW = 3, MAXW = 14;
   const INK = { pink: '#ff48b0', teal: '#0a8f94', yel: '#ffe61f', paper: '#f1f0ea' };
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -340,15 +342,17 @@
   }
 
   /* ---------- flower she's ignoring ---------- */
-  function drawFlower(now) {
-    const fx = 96, fy = 400, sway = Math.sin(now / 1400) * 2;
+  function drawFlower(now, x, dir, fy, seed) {
+    const sway = Math.sin(now / 1400 + seed) * 2;
+    [Y, P, T].forEach(g => { g.save(); g.translate(x, 0); g.scale(dir, 1); });
     T.strokeStyle = INK.teal; T.lineWidth = 5; T.lineCap = 'round';
-    T.beginPath(); T.moveTo(fx - 6, GROUND); T.quadraticCurveTo(fx + 30, 460, fx + sway, fy + 10); T.stroke();
-    T.fillStyle = INK.teal; T.save(); T.translate(fx + 18, 452); T.rotate(-.9); leaf(T, 46, 14); T.fill(); T.restore();
-    P.save(); P.translate(fx + sway, fy);
+    T.beginPath(); T.moveTo(-6, GROUND); T.quadraticCurveTo(30, 460, sway, fy + 10); T.stroke();
+    T.fillStyle = INK.teal; T.save(); T.translate(18, 452); T.rotate(-.9); leaf(T, 46, 14); T.fill(); T.restore();
+    P.save(); P.translate(sway, fy);
     for (let i = 0; i < 5; i++) { P.rotate(Math.PI * 2 / 5); ell(P, 26, 0, 24, 15); P.fillStyle = i % 2 ? INK.pink : pk.mid; P.fill(); }
     P.restore();
-    Y.fillStyle = INK.yel; Y.beginPath(); Y.arc(fx + sway, fy, 11, 0, 7); Y.fill();
+    Y.fillStyle = INK.yel; Y.beginPath(); Y.arc(sway, fy, 11, 0, 7); Y.fill();
+    [Y, P, T].forEach(g => g.restore());
   }
 
   /* ---------- frame ---------- */
@@ -378,11 +382,14 @@
 
     [Y, P, T].forEach(g => g.clearRect(0, 0, W, H));
 
-    Y.drawImage(sunC, 0, 0, W, H);
+    Y.drawImage(sunC, 70, 0, W, H);
     T.fillStyle = tl.lite; T.fillRect(0, GROUND, W, H - GROUND);
     T.fillStyle = INK.teal; T.fillRect(0, GROUND - 2, W, 4);
+    drawFlower(now, 70, 1, 400, 0);
+    drawFlower(now, 730, -1, 420, 2);
+    // shift bird + feeder left so the pair sits in the middle of the frame
+    [Y, P, T].forEach(g => { g.save(); g.translate(SHIFT_X, 0); });
     T.save(); T.fillStyle = tl.mid; ell(T, b.px - 20, GROUND + 22, 60 + f * 70, 9 + f * 4); T.fill(); T.restore();
-    drawFlower(now);
     drawFeeder(now, drinking);
     drawBird(b, wingAng, amp, !grounded, drinking, now);
 
@@ -400,6 +407,7 @@
       T.fillRect(12, -2.5, 96, 5);
       T.restore();
     }
+    [Y, P, T].forEach(g => g.restore());
 
     // grain knock-out, then press the three inks with a hair of misregistration
     [[Y, masks.y, 0, 0], [P, masks.p, 37, 21], [T, masks.t, -23, 44]].forEach(([g, m, ox, oy]) => {
