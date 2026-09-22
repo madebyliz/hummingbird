@@ -348,7 +348,6 @@
     [Y, P, T].forEach(g => { g.save(); g.translate(x, 0); g.scale(dir, 1); });
     T.strokeStyle = INK.teal; T.lineWidth = 5; T.lineCap = 'round';
     T.beginPath(); T.moveTo(-6, GROUND); T.quadraticCurveTo(30, 460, sway, fy + 10); T.stroke();
-    T.fillStyle = INK.teal; T.save(); T.translate(18, 452); T.rotate(-.9); leaf(T, 46, 14); T.fill(); T.restore();
     P.save(); P.translate(sway, fy);
     for (let i = 0; i < 5; i++) { P.rotate(Math.PI * 2 / 5); ell(P, 26, 0, 24, 15); P.fillStyle = i % 2 ? INK.pink : pk.mid; P.fill(); }
     P.restore();
