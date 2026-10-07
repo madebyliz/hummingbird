@@ -101,7 +101,9 @@
   @media (max-width: 520px) { .steps-labels { display: none; } }
 
   .foot { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font: 400 12px/1.5 var(--mono); color: var(--mute); border-top: 1px solid var(--rule); padding-top: 16px; }
-  button.link { font: inherit; color: var(--ink); background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+  .links { display: inline-flex; align-items: center; gap: 14px; }
+  .links .dot { color: var(--mute); }
+  .link { font: inherit; color: var(--ink); background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 </style>
 </head>
@@ -136,7 +138,11 @@
 
   <footer class="foot">
     <span>Three inks, one press: fluorescent pink, teal, sunshine yellow. Hold the button to keep pouring.</span>
-    <button class="link" id="reset" type="button">Start over</button>
+    <span class="links">
+      <button class="link" id="reset" type="button">Start over</button>
+      <span class="dot" aria-hidden="true">&bull;</span>
+      <a class="link" href="https://madebyliz.com" target="_blank" rel="noopener">madebyliz.com</a>
+    </span>
   </footer>
 </main>
 
